@@ -15,8 +15,8 @@ function error(message:string,status:number){return NextResponse.json({error:mes
 
 async function rateLimit(request:NextRequest):Promise<boolean>{
  const ip=(request.headers.get("x-forwarded-for")||"unknown").split(",")[0].trim().slice(0,80);
- const url=process.env.UPSTASH_REDIS_REST_URL;
- const token=process.env.UPSTASH_REDIS_REST_TOKEN;
+ const url=process.env.UPSTASH_REDIS_REST_URL || process.env.KV_REST_API_URL;
+ const token=process.env.UPSTASH_REDIS_REST_TOKEN || process.env.KV_REST_API_TOKEN;
  if(url&&token){
   const bucket=Math.floor(Date.now()/60000);
   const key=`nexora-ai:${ip}:${bucket}`;
