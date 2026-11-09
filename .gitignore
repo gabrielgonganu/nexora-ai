@@ -1,0 +1,17 @@
+.next
+node_modules
+.env*
+!.env.example
+.vercel
+*.tsbuildinfo
+.DS_Store
+
+.env.local
+# NEXORA - arquivos privados e gerados
+.env
+.env.*
+node_modules/
+.next/
+.nexora-backups/
+*.pem
+*.key
