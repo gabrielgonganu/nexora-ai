@@ -18,13 +18,17 @@ async function rateLimit(request:NextRequest):Promise<boolean>{
  const url=process.env.UPSTASH_REDIS_REST_URL || process.env.KV_REST_API_URL;
  const token=process.env.UPSTASH_REDIS_REST_TOKEN || process.env.KV_REST_API_TOKEN;
  if(url&&token){
-  const bucket=Math.floor(Date.now()/60000);
-  const key=`nexora-ai:${ip}:${bucket}`;
-  const response=await fetch(`${url.replace(/\/$/,"")}/pipeline`,{method:"POST",headers:{Authorization:`Bearer ${token}`,"Content-Type":"application/json"},body:JSON.stringify([["INCR",key],["EXPIRE",key,120]]),cache:"no-store",signal:AbortSignal.timeout(3000)});
+  // Per-visitor protection plus a shared daily budget for public demo traffic.
+  // Count attempted requests, even when a request exceeds a limit, to avoid bursts.
+  const minuteBucket=Math.floor(Date.now()/60000);
+  const dayBucket=Math.floor(Date.now()/86400000);
+  const ipKey=`nexora-ai:visitor:${ip}:${minuteBucket}`;
+  const dailyKey=`nexora-ai:global:${dayBucket}`;
+  const response=await fetch(`${url.replace(/\/$/,"")}/pipeline`,{method:"POST",headers:{Authorization:`Bearer ${token}`,"Content-Type":"application/json"},body:JSON.stringify([["INCR",ipKey],["EXPIRE",ipKey,120],["INCR",dailyKey],["EXPIRE",dailyKey,172800]]),cache:"no-store",signal:AbortSignal.timeout(3000)});
   if(!response.ok)throw new Error("Rate limiter unavailable");
   const data:unknown=await response.json();
-  if(!Array.isArray(data)||typeof data[0]?.result!=="number")throw new Error("Rate limiter invalid");
-  return data[0].result<=4;
+  if(!Array.isArray(data)||typeof data[0]?.result!=="number"||typeof data[2]?.result!=="number")throw new Error("Rate limiter invalid");
+  return data[0].result<=4 && data[2].result<=60;
  }
  if(process.env.NODE_ENV==="production")throw new Error("Rate limiter must be configured in production");
  const now=Date.now();const last=localHits.get(ip);
